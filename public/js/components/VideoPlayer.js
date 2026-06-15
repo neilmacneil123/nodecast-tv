@@ -1398,6 +1398,8 @@ class VideoPlayer {
         this.video.pause();
         this.video.src = '';
         this.video.load();
+        this.currentChannel = null;
+        this.currentUrl = null;
 
         // Reset UI to idle state
         this.overlay.classList.remove('hidden'); // Show "Select a channel"

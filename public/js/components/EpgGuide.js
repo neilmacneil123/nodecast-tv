@@ -621,14 +621,12 @@ class EpgGuide {
         const info = row.querySelector('.epg-channel-info');
         if (info) {
             // Name/Logo click plays channel
-            info.querySelector('.epg-channel-name')?.addEventListener('click', (e) => {
+            const playRowChannel = (e) => {
                 e.stopPropagation();
-                this.playChannel(info.querySelector('.epg-channel-name').textContent);
-            });
-            info.querySelector('.epg-channel-logo')?.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.playChannel(info.querySelector('.epg-channel-name').textContent);
-            });
+                this.playChannel(row.dataset.channelId, row.dataset.sourceId);
+            };
+            info.querySelector('.epg-channel-name')?.addEventListener('click', playRowChannel);
+            info.querySelector('.epg-channel-logo')?.addEventListener('click', playRowChannel);
 
             // Favorite click
             const favBtn = info.querySelector('.favorite-btn');
@@ -912,16 +910,21 @@ class EpgGuide {
     /**
      * Play channel from EPG
      */
-    async playChannel(channelName) {
+    async playChannel(channelId, sourceId) {
         // Find channel in channel list and play
         if (window.app?.channelList) {
             const channel = window.app.channelList.channels.find(c =>
-                c.name === channelName || c.tvgName === channelName
+                String(c.id) === String(channelId) && String(c.sourceId) === String(sourceId)
             );
             if (channel) {
-                await window.app.channelList.selectChannel({ channelId: channel.id });
-                // Switch to live TV page
-                document.querySelector('[data-page="live"]').click();
+                window.app.pages?.guide?.showGuidePlayer(channel);
+                await window.app.channelList.selectChannel({
+                    channelId: channel.id,
+                    sourceId: channel.sourceId,
+                    sourceType: channel.sourceType,
+                    streamId: channel.streamId || '',
+                    url: channel.url || ''
+                });
             }
         }
     }

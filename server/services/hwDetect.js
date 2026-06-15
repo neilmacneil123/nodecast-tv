@@ -120,8 +120,11 @@ async function detectVAAPI() {
  */
 async function detectQuickSync() {
     try {
-        // Check if Intel GPU exists
+        // Check if Intel GPU exists. In LXCs, lspci may be unavailable even when
+        // /dev/dri is correctly passed through, so Linux also verifies FFmpeg QSV
+        // can create a real device session.
         let hasIntelGpu = false;
+        let qsvDevice = null;
 
         if (os.platform() === 'win32') {
             // Windows: Check via WMIC
@@ -131,14 +134,42 @@ async function detectQuickSync() {
             );
             hasIntelGpu = result.toLowerCase().includes('intel');
         } else if (os.platform() === 'linux') {
-            // Linux: Check lspci
+            // Linux: Prefer a real FFmpeg QSV init test over PCI visibility.
             try {
-                const result = execSync('lspci | grep -i "vga\\|display" | grep -i intel', {
-                    timeout: 5000,
+                const renderNodes = execSync('ls /dev/dri/renderD* 2>/dev/null', {
+                    timeout: 2000,
                     encoding: 'utf-8',
                     shell: true
+                }).trim().split('\n').filter(Boolean);
+
+                for (const device of renderNodes) {
+                    try {
+                        execSync(`ffmpeg -hide_banner -loglevel error -init_hw_device qsv=qs:${device} -f lavfi -i color=black:s=64x64:r=1 -frames:v 1 -vf "format=nv12,hwupload=extra_hw_frames=64" -c:v h264_qsv -f null -`, {
+                            timeout: 10000,
+                            stdio: 'ignore',
+                            shell: true
+                        });
+                        hasIntelGpu = true;
+                        qsvDevice = device;
+                        break;
+                    } catch {
+                        // Try the next render node.
+                    }
+                }
+            } catch {
+                hasIntelGpu = false;
+            }
+        }
+
+        if (os.platform() === 'win32' && hasIntelGpu) {
+            try {
+                const encoders = execSync('ffmpeg -hide_banner -encoders 2>NUL | findstr h264_qsv', {
+                    timeout: 5000,
+                    encoding: 'utf-8',
+                    shell: true,
+                    windowsHide: true
                 });
-                hasIntelGpu = result.trim().length > 0;
+                hasIntelGpu = encoders.trim().length > 0;
             } catch {
                 hasIntelGpu = false;
             }
@@ -148,10 +179,11 @@ async function detectQuickSync() {
             return { available: false, reason: 'No Intel GPU found' };
         }
 
-        console.log('[HwDetect] Intel GPU detected, QSV may be available');
+        console.log(`[HwDetect] Intel QuickSync available${qsvDevice ? ` on ${qsvDevice}` : ''}`);
 
         return {
             available: true,
+            device: qsvDevice || undefined,
             encoder: 'h264_qsv',
             decoder: 'h264_qsv'
         };

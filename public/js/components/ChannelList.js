@@ -1074,7 +1074,10 @@ class ChannelList {
      * Select and play a channel
      */
     async selectChannel(dataset) {
-        const channel = this.channels.find(c => c.id === dataset.channelId);
+        const channel = this.channels.find(c =>
+            String(c.id) === String(dataset.channelId) &&
+            (!dataset.sourceId || String(c.sourceId) === String(dataset.sourceId))
+        );
         if (!channel) return;
 
         this.currentChannel = channel;

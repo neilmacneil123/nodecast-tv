@@ -159,6 +159,7 @@
 
           <!-- Video Player Area -->
           <section class="player-section">
+            <div id="live-player-dock"></div>
             <div class="video-container" id="video-container">
               <video id="video-player" playsinline></video>
 
@@ -304,6 +305,16 @@
             <button id="guide-next" class="btn btn-ghost">Later &rarr;</button>
           </div>
         </div>
+        <section id="guide-player-window" class="guide-player-window hidden" aria-label="Guide player">
+          <div class="guide-player-titlebar">
+            <div class="guide-player-meta">
+              <span class="guide-player-label">Now Playing</span>
+              <span id="guide-player-title" class="guide-player-title">Live TV</span>
+            </div>
+            <button id="guide-player-close" class="guide-player-close" title="Close player">&times;</button>
+          </div>
+          <div id="guide-player-dock" class="guide-player-dock"></div>
+        </section>
         <div id="epg-grid" class="epg-grid">
           <div class="empty-state">
             <p>No EPG data available</p>

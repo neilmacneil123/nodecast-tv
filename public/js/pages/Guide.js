@@ -5,10 +5,44 @@
 class GuidePage {
     constructor(app) {
         this.app = app;
+        this.playerWindow = document.getElementById('guide-player-window');
+        this.playerDock = document.getElementById('guide-player-dock');
+        this.liveDock = document.getElementById('live-player-dock');
+        this.playerTitle = document.getElementById('guide-player-title');
+        this.closeBtn = document.getElementById('guide-player-close');
+
+        this.closeBtn?.addEventListener('click', () => {
+            this.closeGuidePlayer({ stopPlayback: true });
+        });
     }
 
     async init() {
         // EPG guide will lazy load when shown
+    }
+
+    showGuidePlayer(channel = null) {
+        const videoContainer = document.getElementById('video-container');
+        if (!this.playerWindow || !this.playerDock || !videoContainer) return;
+
+        this.playerDock.appendChild(videoContainer);
+        this.playerWindow.classList.remove('hidden');
+
+        if (this.playerTitle) {
+            this.playerTitle.textContent = channel?.name || channel?.tvgName || 'Live TV';
+        }
+    }
+
+    closeGuidePlayer({ stopPlayback = false } = {}) {
+        const videoContainer = document.getElementById('video-container');
+        if (this.liveDock && videoContainer && videoContainer.parentElement !== this.liveDock.parentElement) {
+            this.liveDock.insertAdjacentElement('afterend', videoContainer);
+        }
+
+        this.playerWindow?.classList.add('hidden');
+
+        if (stopPlayback) {
+            this.app.player?.stop();
+        }
     }
 
     async show() {
@@ -28,10 +62,14 @@ class GuidePage {
             // Just re-render with existing data (updates time position)
             this.app.epgGuide.render();
         }
+
+        if (this.app.player?.currentChannel) {
+            this.showGuidePlayer(this.app.player.currentChannel);
+        }
     }
 
     hide() {
-        // Page is hidden
+        this.closeGuidePlayer();
     }
 }
 

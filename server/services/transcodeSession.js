@@ -406,7 +406,7 @@ class TranscodeSession extends EventEmitter {
                 case 'vaapi':
                     return `scale_vaapi=w=-2:h=${height}:format=nv12`;
                 case 'qsv':
-                    return `scale_qsv=w=-2:h=${height}:format=nv12`;
+                    return `scale_qsv=w=-1:h=${height}:format=nv12`;
                 case 'amf':
                     // AMF uses CPU decode, so use software scale
                     return useUpscale ? `scale=-2:${height}:flags=lanczos` : `scale=-2:${height}`;
@@ -489,8 +489,7 @@ class TranscodeSession extends EventEmitter {
             '-preset', 'medium',
             '-global_quality', String(qp),
             '-look_ahead', '1',
-            '-look_ahead_depth', '40',
-            '-pix_fmt', 'yuv420p'      // Force 8-bit output for compatibility
+            '-look_ahead_depth', '40'
         );
     }
 
