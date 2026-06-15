@@ -9,10 +9,49 @@ class GuidePage {
         this.playerDock = document.getElementById('guide-player-dock');
         this.liveDock = document.getElementById('live-player-dock');
         this.playerTitle = document.getElementById('guide-player-title');
+        this.playerStatus = document.getElementById('guide-player-status');
         this.closeBtn = document.getElementById('guide-player-close');
+        this.stopBtn = document.getElementById('guide-player-stop');
+        this.restoreBtn = document.getElementById('guide-player-restore');
+        this.currentChannel = null;
+        this.playerHidden = true;
 
         this.closeBtn?.addEventListener('click', () => {
+            this.closeGuidePlayer();
+        });
+        this.stopBtn?.addEventListener('click', () => {
             this.closeGuidePlayer({ stopPlayback: true });
+        });
+        this.restoreBtn?.addEventListener('click', () => {
+            this.showGuidePlayer(this.app.player?.currentChannel || this.currentChannel);
+        });
+
+        window.addEventListener('nodecast:player-starting', (e) => {
+            this.currentChannel = e.detail.channel || this.currentChannel;
+            this.showGuidePlayer(this.currentChannel);
+            this.updatePlayerStatus('Loading');
+            this.app.epgGuide?.setPlayingChannel?.(this.currentChannel);
+        });
+        window.addEventListener('nodecast:player-playing', (e) => {
+            this.currentChannel = e.detail.channel || this.currentChannel;
+            this.showGuidePlayer(this.currentChannel);
+            this.updatePlayerStatus('Playing');
+            this.app.epgGuide?.setPlayingChannel?.(this.currentChannel);
+        });
+        window.addEventListener('nodecast:player-status', (e) => {
+            this.updatePlayerStatus(e.detail.text || e.detail.mode || 'Playing');
+        });
+        window.addEventListener('nodecast:player-error', (e) => {
+            this.currentChannel = e.detail.channel || this.currentChannel;
+            this.showGuidePlayer(this.currentChannel);
+            this.updatePlayerStatus(e.detail.message || 'Playback error', 'error');
+        });
+        window.addEventListener('nodecast:player-stopped', () => {
+            this.currentChannel = null;
+            this.updatePlayerStatus('Stopped');
+            this.closeGuidePlayer();
+            this.restoreBtn?.classList.add('hidden');
+            this.app.epgGuide?.setPlayingChannel?.(null);
         });
     }
 
@@ -24,11 +63,18 @@ class GuidePage {
         const videoContainer = document.getElementById('video-container');
         if (!this.playerWindow || !this.playerDock || !videoContainer) return;
 
+        this.currentChannel = channel || this.currentChannel;
         this.playerDock.appendChild(videoContainer);
         this.playerWindow.classList.remove('hidden');
+        this.restoreBtn?.classList.add('hidden');
+        this.playerHidden = false;
 
         if (this.playerTitle) {
-            this.playerTitle.textContent = channel?.name || channel?.tvgName || 'Live TV';
+            this.playerTitle.textContent = this.currentChannel?.name || this.currentChannel?.tvgName || 'Live TV';
+        }
+
+        if (this.app.player?.currentChannel) {
+            this.app.epgGuide?.setPlayingChannel?.(this.app.player.currentChannel);
         }
     }
 
@@ -39,10 +85,22 @@ class GuidePage {
         }
 
         this.playerWindow?.classList.add('hidden');
+        this.playerHidden = true;
 
         if (stopPlayback) {
             this.app.player?.stop();
+            this.restoreBtn?.classList.add('hidden');
+        } else if (this.app.currentPage === 'guide' && (this.app.player?.currentChannel || this.currentChannel)) {
+            this.restoreBtn?.classList.remove('hidden');
+        } else {
+            this.restoreBtn?.classList.add('hidden');
         }
+    }
+
+    updatePlayerStatus(text, tone = '') {
+        if (!this.playerStatus) return;
+        this.playerStatus.textContent = text;
+        this.playerStatus.classList.toggle('error', tone === 'error');
     }
 
     async show() {
@@ -65,6 +123,8 @@ class GuidePage {
 
         if (this.app.player?.currentChannel) {
             this.showGuidePlayer(this.app.player.currentChannel);
+        } else {
+            this.restoreBtn?.classList.add('hidden');
         }
     }
 

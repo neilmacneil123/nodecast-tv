@@ -1069,6 +1069,7 @@ video::cue {
   display: flex;
   align-items: baseline;
   gap: var(--space-sm);
+  flex: 1;
 }
 
 .guide-player-label {
@@ -1088,6 +1089,26 @@ video::cue {
   text-overflow: ellipsis;
 }
 
+.guide-player-status {
+  flex-shrink: 0;
+  max-width: 150px;
+  padding: 2px var(--space-xs);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.guide-player-status.error {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.guide-player-action,
 .guide-player-close {
   width: 32px;
   height: 32px;
@@ -1103,6 +1124,16 @@ video::cue {
   cursor: pointer;
 }
 
+.guide-player-action {
+  width: auto;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.guide-player-action:hover,
 .guide-player-close:hover {
   background: var(--color-bg-hover);
   color: var(--color-text-primary);
@@ -1119,6 +1150,25 @@ video::cue {
   width: 100%;
   height: 100%;
   flex: 1 1 auto;
+}
+
+.guide-player-restore {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: var(--space-lg);
+  z-index: 79;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-accent);
+  color: white;
+  border: 0;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.guide-player-restore:hover {
+  background: var(--color-accent-hover);
 }
 
 .epg-grid {
@@ -1162,6 +1212,20 @@ video::cue {
 .epg-channel-row {
   display: flex;
   border-bottom: 1px solid var(--color-border);
+}
+
+.epg-channel-row.playing .epg-channel-info {
+  background: var(--color-accent-dim);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.epg-channel-row.playing .epg-channel-name::after {
+  content: "Playing";
+  margin-left: var(--space-xs);
+  color: var(--color-accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .epg-channel-info {
@@ -2469,6 +2533,21 @@ kbd {
     right: var(--space-sm);
     bottom: var(--space-sm);
     width: auto;
+  }
+
+  .guide-player-titlebar {
+    gap: var(--space-xs);
+    padding-left: var(--space-sm);
+  }
+
+  .guide-player-label,
+  .guide-player-status {
+    display: none;
+  }
+
+  .guide-player-restore {
+    right: var(--space-sm);
+    bottom: var(--space-sm);
   }
 
   .guide-player-dock {

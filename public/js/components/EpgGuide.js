@@ -34,6 +34,7 @@ class EpgGuide {
         this._scrollHandler = null;
         this._lastVisibleStart = -1;
         this._lastVisibleEnd = -1;
+        this.playingChannelKey = null;
 
         this.init();
     }
@@ -548,6 +549,7 @@ class EpgGuide {
         for (let i = startIndex; i <= endIndex; i++) {
             if (!this.visibleRows.has(i) && i < this.filteredChannels.length) {
                 const row = this.createChannelRow(i);
+                this.updateRowPlayingState(row);
                 this.visibleRows.set(i, row);
                 this.epgContainer.appendChild(row);
             }
@@ -606,7 +608,60 @@ class EpgGuide {
         `;
 
         this.attachRowListeners(row);
+        this.updateRowPlayingState(row);
         return row;
+    }
+
+    getChannelKey(channel) {
+        if (!channel) return null;
+        return `${String(channel.sourceId)}:${String(channel.id)}`;
+    }
+
+    getRowKey(row) {
+        if (!row) return null;
+        return `${String(row.dataset.sourceId)}:${String(row.dataset.channelId)}`;
+    }
+
+    setPlayingChannel(channel) {
+        this.playingChannelKey = this.getChannelKey(channel);
+        this.updatePlayingRows();
+
+        if (channel) {
+            this.ensureChannelVisible(channel);
+        }
+    }
+
+    updatePlayingRows() {
+        this.visibleRows.forEach(row => this.updateRowPlayingState(row));
+    }
+
+    updateRowPlayingState(row) {
+        if (!row) return;
+        row.classList.toggle('playing', Boolean(this.playingChannelKey && this.getRowKey(row) === this.playingChannelKey));
+    }
+
+    ensureChannelVisible(channel) {
+        if (!this.scrollContainer || !this.filteredChannels?.length) return;
+
+        const index = this.filteredChannels.findIndex(({ sourceChannel }) =>
+            String(sourceChannel.id) === String(channel.id) &&
+            String(sourceChannel.sourceId) === String(channel.sourceId)
+        );
+
+        if (index < 0) return;
+
+        const rowTop = index * this.rowHeight;
+        const rowBottom = rowTop + this.rowHeight;
+        const viewportTop = this.scrollContainer.scrollTop;
+        const viewportBottom = viewportTop + this.scrollContainer.clientHeight;
+
+        if (rowTop < viewportTop || rowBottom > viewportBottom) {
+            this.scrollContainer.scrollTo({
+                top: Math.max(0, rowTop - this.rowHeight),
+                behavior: 'smooth'
+            });
+            setTimeout(() => this.updateVisibleRows(), 120);
+        }
     }
 
     /**
@@ -927,6 +982,7 @@ class EpgGuide {
                     streamId: channel.streamId || '',
                     url: channel.url || ''
                 });
+                this.setPlayingChannel(channel);
                 if (window.app.currentPage !== 'guide') {
                     window.app.navigateTo('guide');
                 }

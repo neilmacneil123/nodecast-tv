@@ -257,10 +257,19 @@ class VideoPlayer {
         // Loading spinner
         this.video.addEventListener('waiting', () => {
             this.loadingSpinner?.classList.add('show');
+            if (this.currentChannel) {
+                this.emitPlaybackEvent('status', { mode: 'buffering', text: 'Buffering' });
+            }
         });
 
         this.video.addEventListener('canplay', () => {
             this.loadingSpinner?.classList.remove('show');
+        });
+
+        this.video.addEventListener('playing', () => {
+            if (this.currentChannel) {
+                this.emitPlaybackEvent('playing', { text: 'Playing' });
+            }
         });
 
         // Mute/Volume
@@ -851,14 +860,14 @@ class VideoPlayer {
      * Play a channel
      */
     async play(channel, streamUrl) {
-        this.currentChannel = channel;
-
         try {
             // Stop any WatchPage playback (movies/series) before starting Live TV
             window.app?.pages?.watch?.stop?.();
 
             // Stop current playback
-            this.stop();
+            this.stop({ silent: true });
+            this.currentChannel = channel;
+            this.emitPlaybackEvent('starting', { channel, url: streamUrl, text: 'Loading' });
             this.updateTranscodeStatus('hidden');
 
             // Hide "select a channel" overlay
@@ -992,6 +1001,7 @@ class VideoPlayer {
                         if (data.fatal) {
                             console.log('[Player] HLS fatal error');
                             this.hls.destroy();
+                            this.showError('Stream playback failed');
                         }
                     });
 
@@ -1123,6 +1133,7 @@ class VideoPlayer {
                             }
                         } else {
                             console.error('Fatal HLS error:', data);
+                            this.showError('Stream playback failed');
                         }
                     } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
                         // Non-fatal media error - already handled in init(), skip duplicate handling
@@ -1209,11 +1220,16 @@ class VideoPlayer {
                 // Simple error handling for forced HLS/transcode modes
                 console.error('Fatal HLS error in transcode mode:', data);
                 this.hls.destroy();
+                this.showError('Stream playback failed');
             }
         });
     }
 
     async updateTranscodeStatus(mode, text) {
+        if (mode !== 'hidden') {
+            this.emitPlaybackEvent('status', { mode, text: text || mode });
+        }
+
         const el = document.getElementById('player-transcode-status');
         if (!el) return;
 
@@ -1387,7 +1403,9 @@ class VideoPlayer {
     /**
      * Stop playback
      */
-    stop() {
+    stop({ silent = false } = {}) {
+        const stoppedChannel = this.currentChannel;
+
         // Stop any running transcode session first
         this.stopTranscodeSession();
 
@@ -1411,6 +1429,10 @@ class VideoPlayer {
         this.currentStreamInfo = null;
         const badge = document.getElementById('player-quality-badge');
         if (badge) badge.classList.add('hidden');
+
+        if (!silent && stoppedChannel) {
+            this.emitPlaybackEvent('stopped', { channel: stoppedChannel });
+        }
     }
 
     /**
@@ -1452,6 +1474,17 @@ class VideoPlayer {
     showError(message) {
         this.overlay.classList.remove('hidden');
         this.overlay.querySelector('.overlay-content').innerHTML = `<p style="color: var(--color-error);">${message}</p>`;
+        this.emitPlaybackEvent('error', { message });
+    }
+
+    emitPlaybackEvent(name, detail = {}) {
+        window.dispatchEvent(new CustomEvent(`nodecast:player-${name}`, {
+            detail: {
+                channel: this.currentChannel,
+                url: this.currentUrl,
+                ...detail
+            }
+        }));
     }
 
     /**
