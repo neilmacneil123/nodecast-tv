@@ -623,8 +623,10 @@ class EpgGuide {
             // Name/Logo click plays channel
             const playRowChannel = (e) => {
                 e.stopPropagation();
+                if (e.target.closest('.favorite-btn') || e.target.closest('.resize-handle')) return;
                 this.playChannel(row.dataset.channelId, row.dataset.sourceId);
             };
+            info.addEventListener('click', playRowChannel);
             info.querySelector('.epg-channel-name')?.addEventListener('click', playRowChannel);
             info.querySelector('.epg-channel-logo')?.addEventListener('click', playRowChannel);
 
@@ -925,6 +927,10 @@ class EpgGuide {
                     streamId: channel.streamId || '',
                     url: channel.url || ''
                 });
+                if (window.app.currentPage !== 'guide') {
+                    window.app.navigateTo('guide');
+                }
+                window.app.pages?.guide?.showGuidePlayer(channel);
             }
         }
     }

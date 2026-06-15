@@ -9,7 +9,7 @@ nodecast-tv is a modern, web-based IPTV player featuring Live TV, EPG, Movies (V
 ## Features
 
 - **📺 Live TV**: Fast channel zapping, category grouping, and search.
-- **📅 TV Guide (EPG)**: Interactive grid guide with 24h timeline, search, and dynamic resizing.
+- **📅 TV Guide (EPG)**: Interactive grid guide with 24h timeline, search, dynamic resizing, and in-guide pop-up playback.
 - **🎬 VOD Support**: Dedicated sections for Movies and TV Series with rich metadata, posters, and seasonal episode lists.
 - **❤️ Favorites System**: Unified favorites for channels, movies, and series with instant synchronization.
 - **🔐 Authentication**: User login system with admin and viewer roles ([details](https://github.com/technomancer702/nodecast-tv/pull/23)).
@@ -105,6 +105,31 @@ Update your `docker-compose.yml` to map the DRI devices and add necessary groups
     #   - "render"     # Run on host: getent group render
 ```
 
+**Intel Quick Sync notes**
+
+Quick Sync requires both a working render device and an FFmpeg build that can create an Intel QSV session. Some distro FFmpeg builds may list `h264_qsv` but still fail when creating the oneVPL/MFX session. If QSV detection fails or transcodes fall back to software, verify from inside the container or LXC:
+
+```bash
+ffmpeg -version
+ls -l /dev/dri
+ffmpeg -hide_banner -loglevel error \
+  -init_hw_device qsv=qs:/dev/dri/renderD128 \
+  -f lavfi -i color=black:s=64x64:r=1 \
+  -frames:v 1 \
+  -vf "format=nv12,hwupload=extra_hw_frames=64" \
+  -c:v h264_qsv \
+  -f null -
+```
+
+For Proxmox/LXC deployments, make sure `/dev/dri/renderD128` is mapped into the container with the `render` group, and set `LIBVA_DRIVER_NAME=iHD` when using Intel's media driver. A known-good LXC layout is:
+
+```text
+/dev/dri/card1       660 root:video
+/dev/dri/renderD128  660 root:render
+```
+
+If your distro FFmpeg cannot initialize QSV, Jellyfin's FFmpeg build (`jellyfin-ffmpeg7`) is known to work well with Intel UHD 630-class hardware. Ensure the Nodecast service resolves that FFmpeg first, either by installing wrappers in `/usr/local/bin` or by setting the service `PATH`.
+
 **2. NVIDIA (NVENC)**
 Ensure you have the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) installed on your host, then update your `docker-compose.yml`:
 ```yaml
@@ -182,6 +207,8 @@ All transcoding and stream processing settings are found in **Settings → Trans
 | **Quality Preset** | High, Medium, Low | Encoding quality/speed tradeoff. |
 | **Audio Mix Preset** | Auto, ITU, Night Mode, Cinematic, Passthrough | 5.1→Stereo downmix mode (see below). |
 
+**Intel Quick Sync behavior:** Auto detection verifies that FFmpeg can create a real QSV device session through `/dev/dri/renderD*`. This avoids choosing QSV just because an encoder appears in `ffmpeg -encoders`.
+
 ### Audio Mix Presets
 
 | Preset | Description |
@@ -231,6 +258,12 @@ All transcoding and stream processing settings are found in **Settings → Trans
 | Symptom | Likely Cause | Solution |
 |---------|--------------|----------|
 | Constant buffering | Slow network or weak GPU | 1. Lower **Max Resolution** (e.g. to 720p)<br>2. Try **TS** format instead of HLS |
+
+### TV Guide Opens The Old Live TV View
+
+| Symptom | Likely Cause | Solution |
+|---------|--------------|----------|
+| Clicking a TV Guide channel opens the Live TV page instead of the in-guide player | Browser cached older JavaScript files | Hard refresh the browser or clear site data for nodecast-tv. Private/incognito windows are a quick way to confirm this is a cache issue. |
 
 ### HTTPS / Reverse Proxy Issues
 
