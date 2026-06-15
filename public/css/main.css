@@ -1303,6 +1303,15 @@ video::cue {
   border-left: 3px solid var(--color-accent);
 }
 
+.epg-program.search-match {
+  background: rgba(245, 158, 11, 0.18);
+  border-left: 3px solid var(--color-warning);
+}
+
+.epg-program.current.search-match {
+  box-shadow: inset 0 0 0 1px var(--color-warning);
+}
+
 .epg-program-title {
   font-weight: 500;
   font-size: 0.875rem;

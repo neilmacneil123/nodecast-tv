@@ -35,6 +35,7 @@ class EpgGuide {
         this._lastVisibleStart = -1;
         this._lastVisibleEnd = -1;
         this.playingChannelKey = null;
+        this.programSearchMatches = new Map();
 
         this.init();
     }
@@ -311,12 +312,22 @@ class EpgGuide {
      */
     updateFilteredChannels() {
         const searchTerm = this.searchInput ? this.searchInput.value.toLowerCase().trim() : '';
+        this.programSearchMatches.clear();
 
-        // SEARCH MODE: Filter all channels by name
+        // SEARCH MODE: Filter channels by channel/group name or EPG program text
         if (searchTerm) {
             this.filteredChannels = this.allMatchedChannels.filter(ch => {
-                const name = (ch.sourceChannel?.name || '').toLowerCase();
-                return name.includes(searchTerm);
+                const sourceChannel = ch.sourceChannel || {};
+                const name = (sourceChannel.name || '').toLowerCase();
+                const group = (sourceChannel.groupTitle || '').toLowerCase();
+                const channelMatches = name.includes(searchTerm) || group.includes(searchTerm);
+                const programMatches = this.getProgramSearchMatches(ch.epgChannel, searchTerm);
+
+                if (programMatches.length > 0) {
+                    this.programSearchMatches.set(this.getChannelKey(sourceChannel), new Set(programMatches.map(p => this.getProgramKey(p))));
+                }
+
+                return channelMatches || programMatches.length > 0;
             });
             return;
         }
@@ -336,6 +347,27 @@ class EpgGuide {
                 (m.sourceChannel.groupTitle || 'Uncategorized') === this.selectedGroup
             );
         }
+    }
+
+    getProgramSearchMatches(epgChannel, searchTerm) {
+        if (!epgChannel || !searchTerm || !this.programmes?.length) return [];
+
+        return this.programmes.filter(programme => {
+            if (programme.channelId !== epgChannel.id) return false;
+
+            const title = (programme.title || '').toLowerCase();
+            const description = (programme.description || programme.desc || '').toLowerCase();
+            return title.includes(searchTerm) || description.includes(searchTerm);
+        });
+    }
+
+    getProgramKey(programme) {
+        return [
+            programme.channelId || '',
+            programme.start || '',
+            programme.stop || '',
+            programme.title || ''
+        ].join('|');
     }
 
     /**
@@ -412,6 +444,16 @@ class EpgGuide {
         // Store all channels (matched with EPG data) for filtering
         this.allMatchedChannels = allChannels;
         this.updateFilteredChannels();
+
+        if (this.filteredChannels.length === 0) {
+            this.container.innerHTML = `
+                <div class="empty-state">
+                    <p>No matching channels or programs</p>
+                    <p class="hint">Try a different search or group</p>
+                </div>
+            `;
+            return;
+        }
 
         // Calculate time range and store for batch rendering
         this.startTime = new Date();
@@ -603,7 +645,7 @@ class EpgGuide {
             <div class="resize-handle"></div>
           </div>
           <div class="epg-programs">
-            ${this.renderProgrammes(channelProgrammes, this.startTime, this.endTime)}
+            ${this.renderProgrammes(channelProgrammes, this.startTime, this.endTime, this.programSearchMatches.get(this.getChannelKey(sourceChannel)))}
           </div>
         `;
 
@@ -835,7 +877,7 @@ class EpgGuide {
     /**
      * Render programmes for a channel
      */
-    renderProgrammes(programmes, startTime, endTime) {
+    renderProgrammes(programmes, startTime, endTime, matchedProgramKeys = null) {
         if (programmes.length === 0) {
             const width = (endTime - startTime) / 60000 * this.pixelsPerMinute;
             return `<div class="epg-program" style="width: ${width}px;"><span class="epg-program-title">No data</span></div>`;
@@ -857,9 +899,10 @@ class EpgGuide {
 
             const width = (progEnd - progStart) / 60000 * this.pixelsPerMinute;
             const isCurrent = new Date(prog.start) <= now && new Date(prog.stop) > now;
+            const isSearchMatch = matchedProgramKeys?.has(this.getProgramKey(prog));
 
             html += `
-        <div class="epg-program ${isCurrent ? 'current' : ''}" 
+        <div class="epg-program ${isCurrent ? 'current' : ''} ${isSearchMatch ? 'search-match' : ''}"
              style="width: ${width}px;"
              data-title="${prog.title || ''}"
              data-description="${prog.description || ''}"
