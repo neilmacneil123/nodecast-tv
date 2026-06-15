@@ -300,6 +300,13 @@
               <input type="text" id="epg-search" placeholder="Search channels or programs..." class="search-input">
               <button type="button" class="search-clear" title="Clear search">&times;</button>
             </div>
+            <select id="epg-search-mode" class="source-select guide-search-mode" title="Search mode">
+              <option value="all">All</option>
+              <option value="program-title">Program Title</option>
+              <option value="program-description">Description</option>
+              <option value="program-both">Title + Description</option>
+              <option value="channels">Channels</option>
+            </select>
             <button id="guide-prev" class="btn btn-ghost">&larr; Earlier</button>
             <span id="guide-date" class="guide-date">Today</span>
             <button id="guide-next" class="btn btn-ghost">Later &rarr;</button>
@@ -1116,7 +1123,7 @@
   <script src="/js/components/VideoPlayer.js?v=4"></script>
   <script src="/js/components/ChannelList.js?v=5"></script>
   <script src="/js/components/SourceManager.js?v=3"></script>
-  <script src="/js/components/EpgGuide.js?v=5"></script>
+  <script src="/js/components/EpgGuide.js?v=6"></script>
   <script src="/js/pages/HomePage.js?v=2"></script>
   <script src="/js/pages/LivePage.js?v=2"></script>
   <script src="/js/pages/Guide.js?v=4"></script>

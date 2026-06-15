@@ -1036,6 +1036,10 @@ video::cue {
   gap: var(--space-md);
 }
 
+.guide-search-mode {
+  max-width: 170px;
+}
+
 .guide-date {
   font-weight: 600;
 }

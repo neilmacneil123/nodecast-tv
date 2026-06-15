@@ -12,6 +12,7 @@ class EpgGuide {
         this.nextBtn = document.getElementById('guide-next');
         this.groupSelect = document.getElementById('epg-group-select');
         this.searchInput = document.getElementById('epg-search');
+        this.searchModeSelect = document.getElementById('epg-search-mode');
 
         this.channels = [];
         this.programmes = [];
@@ -69,6 +70,11 @@ class EpgGuide {
                 this.render();
             }, 300));
         }
+
+        this.searchModeSelect?.addEventListener('change', () => {
+            this.render();
+            this.searchInput?.focus();
+        });
 
         // Update current time indicator every minute
         setInterval(() => this.updateNowIndicator(), 60000);
@@ -312,6 +318,7 @@ class EpgGuide {
      */
     updateFilteredChannels() {
         const searchTerm = this.searchInput ? this.searchInput.value.toLowerCase().trim() : '';
+        const searchMode = this.searchModeSelect?.value || 'all';
         this.programSearchMatches.clear();
 
         // SEARCH MODE: Filter channels by channel/group name or EPG program text
@@ -320,8 +327,12 @@ class EpgGuide {
                 const sourceChannel = ch.sourceChannel || {};
                 const name = (sourceChannel.name || '').toLowerCase();
                 const group = (sourceChannel.groupTitle || '').toLowerCase();
-                const channelMatches = name.includes(searchTerm) || group.includes(searchTerm);
-                const programMatches = this.getProgramSearchMatches(ch.epgChannel, searchTerm);
+                const includeChannels = searchMode === 'all' || searchMode === 'channels';
+                const includePrograms = searchMode !== 'channels';
+                const channelMatches = includeChannels && (name.includes(searchTerm) || group.includes(searchTerm));
+                const programMatches = includePrograms
+                    ? this.getProgramSearchMatches(ch.epgChannel, searchTerm, searchMode)
+                    : [];
 
                 if (programMatches.length > 0) {
                     this.programSearchMatches.set(this.getChannelKey(sourceChannel), new Set(programMatches.map(p => this.getProgramKey(p))));
@@ -349,7 +360,7 @@ class EpgGuide {
         }
     }
 
-    getProgramSearchMatches(epgChannel, searchTerm) {
+    getProgramSearchMatches(epgChannel, searchTerm, searchMode = 'all') {
         if (!epgChannel || !searchTerm || !this.programmes?.length) return [];
 
         return this.programmes.filter(programme => {
@@ -357,6 +368,9 @@ class EpgGuide {
 
             const title = (programme.title || '').toLowerCase();
             const description = (programme.description || programme.desc || '').toLowerCase();
+
+            if (searchMode === 'program-title') return title.includes(searchTerm);
+            if (searchMode === 'program-description') return description.includes(searchTerm);
             return title.includes(searchTerm) || description.includes(searchTerm);
         });
     }
