@@ -1047,6 +1047,22 @@ class SourceManager {
 
             // Update local state to match
             this.treeData.groups.forEach(group => {
+                let groupItemType = 'group';
+                if (contentType === 'movies') {
+                    groupItemType = 'vod_category';
+                } else if (contentType === 'series') {
+                    groupItemType = 'series_category';
+                }
+
+                if (group.categoryId) {
+                    const groupKey = `${groupItemType}:${group.categoryId}`;
+                    if (visible) {
+                        this.hiddenSet.delete(groupKey);
+                    } else {
+                        this.hiddenSet.add(groupKey);
+                    }
+                }
+
                 group.items.forEach(item => {
                     const key = `${item.type}:${item.id}`;
                     if (visible) {

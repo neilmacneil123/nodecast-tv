@@ -802,7 +802,7 @@ class ChannelList {
             tvgLogo: stream.stream_icon,
             groupId: `xtream_${sourceId}_${stream.category_id}`,
             // Use string comparison to handle type mismatches (number vs string category_id)
-            groupTitle: categories.find(c => String(c.category_id) === String(stream.category_id))?.category_name || 'Uncategorized',
+            groupTitle: categories.find(c => String(c.category_id) === String(stream.category_id))?.category_name || stream.category_name || 'Uncategorized',
             sourceId,
             sourceType: 'xtream'
         }));
@@ -843,7 +843,7 @@ class ChannelList {
             tvgLogo: stream.stream_icon,
             url: stream.stream_url, // M3U has direct URLs
             groupId: `m3u_${sourceId}_${stream.category_id}`,
-            groupTitle: categories.find(c => String(c.category_id) === String(stream.category_id))?.category_name || 'Uncategorized',
+            groupTitle: categories.find(c => String(c.category_id) === String(stream.category_id))?.category_name || stream.category_name || stream.category_id || 'Uncategorized',
             sourceId,
             sourceType: 'm3u'
         }));
