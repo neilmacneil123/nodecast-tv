@@ -39,7 +39,7 @@ nodecast-tv is a modern, web-based IPTV player featuring Live TV, EPG, Movies (V
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
+- Node.js (v18 or higher)
 - npm
 
 ### Installation
@@ -52,7 +52,7 @@ nodecast-tv is a modern, web-based IPTV player featuring Live TV, EPG, Movies (V
 
 2.  Install dependencies:
     ```bash
-    npm install
+    npm ci
     ```
 
 3.  Start the development server:
@@ -61,6 +61,37 @@ nodecast-tv is a modern, web-based IPTV player featuring Live TV, EPG, Movies (V
     ```
 
 4.  Open your browser at `http://localhost:3000`.
+
+### LXC / systemd Deployment
+
+`node_modules` is intentionally not committed to git, so a fresh clone or pull needs to install dependencies before the service starts. If this step is skipped, Node can fail with errors such as `Cannot find module 'express'`.
+
+Fresh clone:
+
+```bash
+cd /opt
+git clone https://github.com/neilmacneil123/nodecast-tv.git nodecast-tv
+cd /opt/nodecast-tv
+npm ci --omit=dev
+systemctl restart nodecast-tv
+```
+
+Update an existing checkout:
+
+```bash
+cd /opt/nodecast-tv
+git pull --ff-only
+npm ci --omit=dev
+systemctl restart nodecast-tv
+```
+
+Or use the included helper after cloning the repo:
+
+```bash
+APP_DIR=/opt/nodecast-tv SERVICE=nodecast-tv BRANCH=main sh scripts/deploy-lxc.sh
+```
+
+For systemd, prefer `npm start` for the service command. `npm run dev` uses `node --watch` and is intended for development.
 
 ### Docker Deployment
 
