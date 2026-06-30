@@ -313,11 +313,24 @@
           </div>
         </div>
         <section id="guide-player-window" class="guide-player-window hidden" aria-label="Guide player">
+          <button id="guide-player-resize-handle" class="guide-player-resize-handle" type="button" title="Resize player" aria-label="Resize player"></button>
           <div class="guide-player-titlebar">
             <div class="guide-player-meta">
               <span class="guide-player-label">Now Playing</span>
               <span id="guide-player-title" class="guide-player-title">Live TV</span>
               <span id="guide-player-status" class="guide-player-status">Ready</span>
+            </div>
+            <div class="guide-player-controls">
+              <select id="guide-player-encode-mode" class="guide-player-select" title="Playback mode">
+                <option value="auto">Auto</option>
+                <option value="direct">No encode</option>
+                <option value="encode">Force encode</option>
+              </select>
+              <select id="guide-player-quality" class="guide-player-select" title="Encode quality">
+                <option value="high">High</option>
+                <option value="medium" selected>Medium</option>
+                <option value="low">Low</option>
+              </select>
             </div>
             <button id="guide-player-stop" class="guide-player-action" title="Stop playback">Stop</button>
             <button id="guide-player-close" class="guide-player-close" title="Close player">&times;</button>
@@ -1120,13 +1133,15 @@
   <!-- JavaScript -->
   <script src="/js/icons.js"></script>
   <script src="/js/api.js?v=2"></script>
-  <script src="/js/components/VideoPlayer.js?v=4"></script>
+  <script src="/js/components/VideoPlayer.js?v=5"></script>
   <script src="/js/components/ChannelList.js?v=5"></script>
   <script src="/js/components/SourceManager.js?v=3"></script>
-  <script src="/js/components/EpgGuide.js?v=6"></script>
+  <script src="/js/components/EpgSearch.js?v=1"></script>
+  <script src="/js/components/GuidePlayerController.js?v=1"></script>
+  <script src="/js/components/EpgGuide.js?v=7"></script>
   <script src="/js/pages/HomePage.js?v=2"></script>
   <script src="/js/pages/LivePage.js?v=2"></script>
-  <script src="/js/pages/Guide.js?v=4"></script>
+  <script src="/js/pages/Guide.js?v=5"></script>
   <script src="/js/pages/MoviesPage.js?v=4"></script>
   <script src="/js/pages/SeriesPage.js?v=1"></script>
   <script src="/js/pages/Settings.js?v=2"></script>

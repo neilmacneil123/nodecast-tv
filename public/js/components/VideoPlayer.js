@@ -27,7 +27,10 @@ class VideoPlayer {
         this.overlayDuration = 5000; // 5 seconds
         this.isUsingProxy = false;
         this.currentUrl = null;
+        this.sourceStreamUrl = null;
         this.settingsLoaded = false;
+        this._playbackListeners = [];
+        this.playbackOverrides = { encodeMode: 'auto', quality: null };
 
         // Settings - start with defaults, load from server async
         this.settings = this.getDefaultSettings();
@@ -821,13 +824,35 @@ class VideoPlayer {
     /**
      * Start a HLS transcode session
      */
+    setPlaybackOverrides(overrides = {}) {
+        this.playbackOverrides = { ...this.playbackOverrides, ...overrides };
+    }
+
+    getTranscodeSessionOptions(extra = {}) {
+        return {
+            quality: this.playbackOverrides.quality || this.settings.quality || 'medium',
+            ...extra
+        };
+    }
+
+    onPlaybackEvent(listener) {
+        if (typeof listener !== 'function') return () => {};
+        this._playbackListeners.push(listener);
+        return () => this.offPlaybackEvent(listener);
+    }
+
+    offPlaybackEvent(listener) {
+        this._playbackListeners = this._playbackListeners.filter(fn => fn !== listener);
+    }
+
     async startTranscodeSession(url, options = {}) {
         try {
-            console.log('[Player] Starting HLS transcode session...', options);
+            const sessionOptions = this.getTranscodeSessionOptions(options);
+            console.log('[Player] Starting HLS transcode session...', sessionOptions);
             const res = await fetch('/api/transcode/session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url, ...options })
+                body: JSON.stringify({ url, ...sessionOptions })
             });
             if (!res.ok) throw new Error('Failed to start session');
             const session = await res.json();
@@ -879,9 +904,42 @@ class VideoPlayer {
 
             // Determine if HLS or direct stream
             this.currentUrl = streamUrl;
+            this.sourceStreamUrl = streamUrl;
+
+            const encodeMode = this.playbackOverrides.encodeMode || 'auto';
+            const forceDirect = encodeMode === 'direct';
+            const forceEncode = encodeMode === 'encode';
+
+            if (forceEncode) {
+                console.log('[Player] Guide override: force encode');
+                let probeInfo = {};
+                try {
+                    const probeRes = await fetch(`/api/probe?url=${encodeURIComponent(streamUrl)}`);
+                    probeInfo = await probeRes.json();
+                    this.currentStreamInfo = probeInfo;
+                    this.updateQualityBadge();
+                } catch (err) {
+                    console.warn('[Player] Probe failed for forced encode:', err.message);
+                }
+
+                this.updateTranscodeStatus('transcoding', 'Transcoding (Forced)');
+                const playlistUrl = await this.startTranscodeSession(streamUrl, {
+                    videoMode: 'encode',
+                    videoCodec: probeInfo.video,
+                    audioCodec: probeInfo.audio,
+                    audioChannels: probeInfo.audioChannels
+                });
+                this.currentUrl = playlistUrl;
+                this.playHls(playlistUrl);
+                this.updateNowPlaying(channel);
+                this.showNowPlayingOverlay();
+                this.fetchEpgData(channel);
+                window.dispatchEvent(new CustomEvent('channelChanged', { detail: channel }));
+                return;
+            }
 
             // CHECK: Auto Transcode (Smart) - probe first, then decide
-            if (this.settings.autoTranscode) {
+            if (!forceDirect && this.settings.autoTranscode) {
                 console.log('[Player] Auto Transcode enabled. Probing stream...');
                 try {
                     const probeRes = await fetch(`/api/probe?url=${encodeURIComponent(streamUrl)}`);
@@ -965,7 +1023,7 @@ class VideoPlayer {
             }
 
             // CHECK: Force Video Transcode (Full) or Upscaling
-            if (this.settings.forceVideoTranscode || this.settings.upscaleEnabled) {
+            if (!forceDirect && (this.settings.forceVideoTranscode || this.settings.upscaleEnabled)) {
                 const statusText = this.settings.upscaleEnabled ? 'Upscaling' : 'Transcoding (Video)';
                 const statusMode = this.settings.upscaleEnabled ? 'upscaling' : 'transcoding';
                 console.log(`[Player] ${statusText} enabled. Starting session (encode)...`);
@@ -1010,7 +1068,7 @@ class VideoPlayer {
             }
 
             // CHECK: Force Audio Transcode (Copy Video) - legacy forceTranscode setting
-            if (this.settings.forceTranscode) {
+            if (!forceDirect && this.settings.forceTranscode) {
                 console.log('[Player] Force Audio Transcode enabled. Starting session (copy)...');
                 this.updateTranscodeStatus('transcoding', 'Transcoding (Audio)');
 
@@ -1060,7 +1118,7 @@ class VideoPlayer {
 
             // Force Remux: Route through FFmpeg for container conversion
             // Applies to: 1) .ts streams when detected, or 2) ALL non-HLS streams when enabled
-            if (this.settings.forceRemux && (isRawTs || isExtensionless)) {
+            if (!forceDirect && this.settings.forceRemux && (isRawTs || isExtensionless)) {
                 console.log('[Player] Force Remux enabled. Routing through FFmpeg remux...');
                 console.log('[Player] Stream type:', isRawTs ? 'Raw TS' : 'Extension-less (assumed TS)');
                 this.updateTranscodeStatus('remuxing', 'Remux (Force)');
@@ -1478,13 +1536,23 @@ class VideoPlayer {
     }
 
     emitPlaybackEvent(name, detail = {}) {
-        window.dispatchEvent(new CustomEvent(`nodecast:player-${name}`, {
+        const payload = {
+            name,
             detail: {
                 channel: this.currentChannel,
                 url: this.currentUrl,
+                sourceUrl: this.sourceStreamUrl,
                 ...detail
             }
-        }));
+        };
+
+        for (const listener of this._playbackListeners) {
+            try {
+                listener(payload);
+            } catch (err) {
+                console.error('[Player] Playback listener failed:', err);
+            }
+        }
     }
 
     /**

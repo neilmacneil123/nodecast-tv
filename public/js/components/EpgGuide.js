@@ -9,10 +9,10 @@ class EpgGuide {
         this.dateDisplay = document.getElementById('guide-date');
         this.prevBtn = document.getElementById('guide-prev');
         this.nextBtn = document.getElementById('guide-next');
-        this.nextBtn = document.getElementById('guide-next');
         this.groupSelect = document.getElementById('epg-group-select');
         this.searchInput = document.getElementById('epg-search');
         this.searchModeSelect = document.getElementById('epg-search-mode');
+        this.search = new EpgSearch();
 
         this.channels = [];
         this.programmes = [];
@@ -36,7 +36,6 @@ class EpgGuide {
         this._lastVisibleStart = -1;
         this._lastVisibleEnd = -1;
         this.playingChannelKey = null;
-        this.programSearchMatches = new Map();
 
         this.init();
     }
@@ -254,6 +253,8 @@ class EpgGuide {
             throw new Error('Failed to load EPG data from any source');
         }
 
+        this.search.buildIndex(this.programmes);
+
         // Build secondary indexes for faster lookup
         this.channelMap = new Map();
         // Index by ID
@@ -317,29 +318,17 @@ class EpgGuide {
      * Update filtered channels based on search or group
      */
     updateFilteredChannels() {
-        const searchTerm = this.searchInput ? this.searchInput.value.toLowerCase().trim() : '';
+        const searchTerm = this.searchInput ? this.searchInput.value : '';
         const searchMode = this.searchModeSelect?.value || 'all';
-        this.programSearchMatches.clear();
+        const searchResults = this.search.filter(
+            this.allMatchedChannels,
+            searchTerm,
+            searchMode,
+            (channel) => this.getChannelKey(channel)
+        );
 
-        // SEARCH MODE: Filter channels by channel/group name or EPG program text
-        if (searchTerm) {
-            this.filteredChannels = this.allMatchedChannels.filter(ch => {
-                const sourceChannel = ch.sourceChannel || {};
-                const name = (sourceChannel.name || '').toLowerCase();
-                const group = (sourceChannel.groupTitle || '').toLowerCase();
-                const includeChannels = searchMode === 'all' || searchMode === 'channels';
-                const includePrograms = searchMode !== 'channels';
-                const channelMatches = includeChannels && (name.includes(searchTerm) || group.includes(searchTerm));
-                const programMatches = includePrograms
-                    ? this.getProgramSearchMatches(ch.epgChannel, searchTerm, searchMode)
-                    : [];
-
-                if (programMatches.length > 0) {
-                    this.programSearchMatches.set(this.getChannelKey(sourceChannel), new Set(programMatches.map(p => this.getProgramKey(p))));
-                }
-
-                return channelMatches || programMatches.length > 0;
-            });
+        if (searchResults) {
+            this.filteredChannels = searchResults;
             return;
         }
 
@@ -358,30 +347,6 @@ class EpgGuide {
                 (m.sourceChannel.groupTitle || 'Uncategorized') === this.selectedGroup
             );
         }
-    }
-
-    getProgramSearchMatches(epgChannel, searchTerm, searchMode = 'all') {
-        if (!epgChannel || !searchTerm || !this.programmes?.length) return [];
-
-        return this.programmes.filter(programme => {
-            if (programme.channelId !== epgChannel.id) return false;
-
-            const title = (programme.title || '').toLowerCase();
-            const description = (programme.description || programme.desc || '').toLowerCase();
-
-            if (searchMode === 'program-title') return title.includes(searchTerm);
-            if (searchMode === 'program-description') return description.includes(searchTerm);
-            return title.includes(searchTerm) || description.includes(searchTerm);
-        });
-    }
-
-    getProgramKey(programme) {
-        return [
-            programme.channelId || '',
-            programme.start || '',
-            programme.stop || '',
-            programme.title || ''
-        ].join('|');
     }
 
     /**
@@ -659,7 +624,7 @@ class EpgGuide {
             <div class="resize-handle"></div>
           </div>
           <div class="epg-programs">
-            ${this.renderProgrammes(channelProgrammes, this.startTime, this.endTime, this.programSearchMatches.get(this.getChannelKey(sourceChannel)))}
+            ${this.renderProgrammes(channelProgrammes, this.startTime, this.endTime, this.search.programSearchMatches.get(this.getChannelKey(sourceChannel)))}
           </div>
         `;
 
@@ -913,7 +878,7 @@ class EpgGuide {
 
             const width = (progEnd - progStart) / 60000 * this.pixelsPerMinute;
             const isCurrent = new Date(prog.start) <= now && new Date(prog.stop) > now;
-            const isSearchMatch = matchedProgramKeys?.has(this.getProgramKey(prog));
+            const isSearchMatch = matchedProgramKeys?.has(this.search.getProgramKey(prog));
 
             html += `
         <div class="epg-program ${isCurrent ? 'current' : ''} ${isSearchMatch ? 'search-match' : ''}"
@@ -1031,7 +996,9 @@ class EpgGuide {
                 String(c.id) === String(channelId) && String(c.sourceId) === String(sourceId)
             );
             if (channel) {
-                window.app.pages?.guide?.showGuidePlayer(channel);
+                if (window.app.currentPage !== 'guide') {
+                    window.app.navigateTo('guide');
+                }
                 await window.app.channelList.selectChannel({
                     channelId: channel.id,
                     sourceId: channel.sourceId,
@@ -1039,11 +1006,6 @@ class EpgGuide {
                     streamId: channel.streamId || '',
                     url: channel.url || ''
                 });
-                this.setPlayingChannel(channel);
-                if (window.app.currentPage !== 'guide') {
-                    window.app.navigateTo('guide');
-                }
-                window.app.pages?.guide?.showGuidePlayer(channel);
             }
         }
     }

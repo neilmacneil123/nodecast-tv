@@ -1049,7 +1049,7 @@ video::cue {
   right: var(--space-lg);
   bottom: var(--space-lg);
   z-index: 80;
-  width: min(560px, calc(100vw - (var(--space-lg) * 2)));
+  width: var(--guide-player-width, min(560px, calc(100vw - (var(--space-lg) * 2))));
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -1057,15 +1057,57 @@ video::cue {
   overflow: hidden;
 }
 
+.guide-player-resize-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: linear-gradient(135deg, transparent 50%, var(--color-text-muted) 50%);
+  opacity: 0.45;
+  cursor: nwse-resize;
+}
+
+.guide-player-resize-handle:hover,
+.guide-player-resize-handle.active {
+  opacity: 0.9;
+}
+
 .guide-player-titlebar {
-  height: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-md);
-  padding: 0 var(--space-sm) 0 var(--space-md);
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm) var(--space-xs) var(--space-md);
   background: var(--color-bg-tertiary);
   border-bottom: 1px solid var(--color-border);
+}
+
+.guide-player-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.guide-player-select {
+  max-width: 108px;
+  padding: 2px var(--space-xs);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+}
+
+.guide-player-select:disabled,
+.guide-player-select.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .guide-player-meta {
@@ -1144,8 +1186,8 @@ video::cue {
 }
 
 .guide-player-dock {
-  height: min(315px, calc((100vw - (var(--space-lg) * 2)) * 0.5625));
-  min-height: 220px;
+  height: var(--guide-player-dock-height, min(315px, calc((100vw - (var(--space-lg) * 2)) * 0.5625)));
+  min-height: 180px;
   display: flex;
   background: #000;
 }
@@ -2554,7 +2596,8 @@ kbd {
   }
 
   .guide-player-label,
-  .guide-player-status {
+  .guide-player-status,
+  .guide-player-controls {
     display: none;
   }
 
